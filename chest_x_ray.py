@@ -6,7 +6,7 @@ Batch=32
 Architecture='resnet50'
 num_classes=2
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-Epochs=10
+Epochs=5
 
 train_accs,val_accs=[],[]
 train_losses,val_losses=[],[]
@@ -157,9 +157,9 @@ for epoch in range(Epochs):
     if best_val_acc<val_acc:
         best_val_acc=val_acc
 
-        print(f"Epoch {epoch+1}/{Epochs}")
-        print(f"Trainning Accuracy:{train_acc:.2f}")
-        print(f"Val accuracy:{val_acc:.2f}")
+    print(f"Epoch {epoch+1}/{Epochs}")
+    print(f"Trainning Accuracy:{train_acc:.2f}")
+    print(f"Val accuracy:{val_acc:.2f}")
 
 
 
@@ -168,3 +168,85 @@ for epoch in range(Epochs):
     val_accs.append(val_acc)
     val_losses.append(val_loss)
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+
+#training cruve
+def plot_training(train_accs,val_accs,train_losses,val_losses):
+    fig,(ax1,ax2)=plt.subplots(1,2,figsize=(12,4))
+
+    ax1.plot(train_accs,label='Train')
+    ax1.plot(val_accs,label='Val ')
+    ax1.set_title('Accuracy')
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("%")
+    ax1.legend()
+
+    ax2.plot(train_losses,label='Train')
+    ax2.plot(val_losses,label='Val')
+    ax2.set_title("loss")
+    ax2.set_xlabel("Epoch")  
+    ax2.set_ylabel("Loss")    
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.savefig('chesx_ray_training.png')
+    plt.show()
+    print('Saved training cruves')
+
+
+#confusion matrix
+def plot_confusion(model,val_loader,class_names):
+    all_preds,all_labels=[],[]
+    model.eval()
+    with torch.no_grad():
+        for images,labels in val_loader:
+            images,labels=images.to(DEVICE),labels.to(DEVICE)
+            outputs=model(images)
+            preds=outputs.argmax(1).cpu().numpy()
+            all_preds.extend(preds)
+            all_labels.extend(labels.cpu().numpy())
+
+    cm=confusion_matrix(all_labels,all_preds)
+    plt.figure(figsize=(10,8))
+    sns.heatmap(cm,annot=True,fmt='d',cmap='Blues',
+                xticklabels=class_names,
+                yticklabels=class_names)
+    
+    plt.title("Confusion matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.savefig("confusion_matrix.png")
+    plt.show()
+    print("Saved confusion matrix")
+
+#sample prediction
+def plot_predicted(model,val_loader,class_names,n=8):
+    model.eval()
+    images,labels=next(iter(val_loader))
+    with torch.no_grad():
+        images=images.to(DEVICE)
+        preds=model(images).argmax(1).cpu().numpy()
+
+        mean=torch.tensor([0.485,0.456,0.406]).view(3,1,1).to(DEVICE)
+        std=torch.tensor([0.229,0.224,0.225]).view(3,1,1).to(DEVICE)
+        images=(images*std+mean).clamp(0,1).cpu()
+
+        fig,axes=plt.subplots(1,n,figsize=(2*n,3))
+        for i,ax in enumerate(axes):
+            ax.imshow(images[i].permute(1,2,0))
+            color='green' if preds[i]==labels[i] else 'red'
+            ax.set_title(f'P : {class_names[preds[i]]}\nT : {class_names[labels[i]]}',
+                         color=color,fontsize=8)
+            ax.axis('off')
+
+        plt.savefig('Predicted.png')
+        plt.show()
+        print('Saved predicted figure')
+
+class_names=train_datasets.classes
+
+plot_training(train_accs,val_accs,train_losses,val_losses)
+plot_confusion(model,val_loader,class_names)
+plot_predicted(model,val_loader,class_names)
