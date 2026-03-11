@@ -7,7 +7,7 @@ Batch=32
 Architecture='vgg16'
 num_classes=2
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-Epochs=5
+Epochs=10
 
 train_accs,val_accs=[],[]
 train_losses,val_losses=[],[]
@@ -123,7 +123,7 @@ model=model.to(DEVICE)
 
 #optimizer,loss and scheduler
 optimizer=torch.optim.Adam(
-    filter(lambda p: p.requires_grad,model.parameters()),lr=1e-3
+    filter(lambda p: p.requires_grad,model.parameters()),lr=1e-4
 )
 
 criterion=torch.nn.CrossEntropyLoss()
@@ -212,7 +212,7 @@ for epoch in range(Epochs):
     train_losses.append(train_loss)
     val_accs.append(val_acc)
     val_losses.append(val_loss)
-    
+
 print(f"Best Accuracy:{best_val_acc:.2f}")
 print("\n----Test Results----")
 test_acc, test_prec, test_rec, test_f1 = evaluate(model, test_loader)
