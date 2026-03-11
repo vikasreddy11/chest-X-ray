@@ -8,6 +8,11 @@ Image classification using the **fine-tuning method** on chest X-ray images.
 
 ---
 
+## Project Overview
+
+This project applies transfer learning using the VGG16 convolutional neural network to classify chest X-ray images into two categories: Normal and Pneumonia. The model is fine-tuned on a medical imaging dataset and evaluated using multiple performance metrics including accuracy, precision, recall, and F1 score.
+---
+
 # Dataset
 
 The model is trained on a **Chest X-ray dataset** consisting of two classes:
@@ -96,8 +101,8 @@ Model performance is evaluated using:
 
 
 ## Predictions
-- Green title = correct prediction
-- Red title = wrong prediction
+- Green title indicates a correct prediction.
+- Red title indicates an incorrect prediction.
 <img width="1600" height="300" alt="Predicted" src="https://github.com/user-attachments/assets/5628d1f0-6318-4e09-952d-f5f1a62459ff" />
 
 
