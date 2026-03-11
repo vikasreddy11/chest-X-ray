@@ -1,9 +1,10 @@
 import torch
 import torchvision
+from sklearn.metrics import confusion_matrix,f1_score,accuracy_score,precision_score,recall_score
 
 #setting
 Batch=32
-Architecture='resnet50'
+Architecture='vgg16'
 num_classes=2
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 Epochs=5
@@ -30,11 +31,14 @@ val_transforms=torchvision.transforms.Compose([
                                      [0.229,0.224,0.225])
 ])
 
+
 train_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/train', transform=train_transforms)
 val_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/val', transform=val_transforms)
+test_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/test', transform=val_transforms)
 
 train_loader=torch.utils.data.DataLoader(dataset=train_datasets,batch_size=Batch,shuffle=True)
 val_loader=torch.utils.data.DataLoader(dataset=val_datasets,shuffle=False,batch_size=Batch)
+test_loader=torch.utils.data.DataLoader(dataset=test_datasets,shuffle=False,batch_size=Batch)
 
 
 #Model
@@ -114,6 +118,31 @@ scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(
     factor=0.2
 )
 
+# Evaluate
+
+def evaluate(model,loader):
+    model.eval()
+
+    all_preds=[]
+    all_labels=[]
+
+    with torch.no_grad():
+        for images,labels in test_loader:
+            images,labels=images.to(DEVICE),labels.to(DEVICE)
+
+            outputs=model(images)
+            preds=outputs.argmax(1)
+
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    accuracy=accuracy_score(all_labels,all_preds)
+    precision=precision_score(all_labels,all_preds)
+    recall=recall_score(all_labels,all_preds)
+    f1=f1_score(all_labels,all_preds)
+
+    return accuracy,precision,recall,f1
+
 #train
 best_val_acc=0
 
@@ -168,9 +197,17 @@ for epoch in range(Epochs):
     val_accs.append(val_acc)
     val_losses.append(val_loss)
 
+print("\n----Test Results----")
+test_acc, test_prec, test_rec, test_f1 = evaluate(model, test_loader)
+
+print(f"Test Accuracy  : {test_acc*100:.2f}%")
+print(f"Test Precision : {test_prec:.4f}")
+print(f"Test Recall    : {test_rec:.4f}")
+print(f"Test F1 Score  : {test_f1:.4f}")
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
+
 
 #training cruve
 def plot_training(train_accs,val_accs,train_losses,val_losses):
