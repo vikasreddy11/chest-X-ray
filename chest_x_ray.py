@@ -36,9 +36,24 @@ train_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/train
 val_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/val', transform=val_transforms)
 test_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/test', transform=val_transforms)
 
-train_loader=torch.utils.data.DataLoader(dataset=train_datasets,batch_size=Batch,shuffle=True)
-val_loader=torch.utils.data.DataLoader(dataset=val_datasets,shuffle=False,batch_size=Batch)
-test_loader=torch.utils.data.DataLoader(dataset=test_datasets,shuffle=False,batch_size=Batch)
+from torch.utils.data import random_split, ConcatDataset
+
+#val set is small
+full_dataset = ConcatDataset([train_datasets, val_datasets,test_datasets])
+
+total      = len(full_dataset)
+train_size = int(0.8 * total)  
+val_size   = int(0.1 * total)  
+test_size  = total - train_size - val_size
+
+train_data, val_data, test_data = random_split(
+    full_dataset,
+    [train_size, val_size, test_size]
+)
+
+train_loader=torch.utils.data.DataLoader(dataset=train_data,batch_size=Batch,shuffle=True)
+val_loader=torch.utils.data.DataLoader(dataset=val_data,shuffle=False,batch_size=Batch)
+test_loader=torch.utils.data.DataLoader(dataset=test_data,shuffle=False,batch_size=Batch)
 
 
 #Model
@@ -67,8 +82,9 @@ def build_model(Architecture,num_classes):
         for param in model.features.parameters():
             param.requires_grad=False
         
-        for param in list(model.features.children())[:-4]:
-            param.requires_grad=True
+        for layer in model.features[-4:]:
+            for param in layer.parameters():
+                param.requires_grad = True
         
         in_features=model.classifier[6].in_features
         model.classifier[6]=torch.nn.Sequential(
@@ -84,8 +100,9 @@ def build_model(Architecture,num_classes):
         for param in model.features.parameters():
             param.requires_grad=False
 
-        for param in list(model.features.children())[:-3]:
-            param.requires_grad=True
+        for layer in model.features[-3:]:
+            for param in layer.parameters():
+                param.requires_grad = True
 
         in_features=model.classifier[1].in_features
         model.classifier[1]=torch.nn.Sequential(
@@ -127,7 +144,7 @@ def evaluate(model,loader):
     all_labels=[]
 
     with torch.no_grad():
-        for images,labels in test_loader:
+        for images,labels in loader:
             images,labels=images.to(DEVICE),labels.to(DEVICE)
 
             outputs=model(images)
@@ -191,12 +208,12 @@ for epoch in range(Epochs):
     print(f"Val accuracy:{val_acc:.2f}")
 
 
-
     train_accs.append(train_acc)
     train_losses.append(train_loss)
     val_accs.append(val_acc)
     val_losses.append(val_loss)
-
+    
+print(f"Best Accuracy:{best_val_acc:.2f}")
 print("\n----Test Results----")
 test_acc, test_prec, test_rec, test_f1 = evaluate(model, test_loader)
 
@@ -234,11 +251,11 @@ def plot_training(train_accs,val_accs,train_losses,val_losses):
 
 
 #confusion matrix
-def plot_confusion(model,val_loader,class_names):
+def plot_confusion(model,loader,class_names):
     all_preds,all_labels=[],[]
     model.eval()
     with torch.no_grad():
-        for images,labels in val_loader:
+        for images,labels in loader:
             images,labels=images.to(DEVICE),labels.to(DEVICE)
             outputs=model(images)
             preds=outputs.argmax(1).cpu().numpy()
@@ -285,5 +302,5 @@ def plot_predicted(model,val_loader,class_names,n=8):
 class_names=train_datasets.classes
 
 plot_training(train_accs,val_accs,train_losses,val_losses)
-plot_confusion(model,val_loader,class_names)
+plot_confusion(model,test_loader,class_names)
 plot_predicted(model,val_loader,class_names)
