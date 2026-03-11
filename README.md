@@ -90,20 +90,22 @@ Model performance is evaluated using:
 ## Training curves
 - The graph shows accuracy increasing and loss decreasing over 10 epochs.
 - Train and Val curves are close together which means no overfitting.
-<img width="1200" height="400" alt="chesx_ray_training" src="https://github.com/user-attachments/assets/efa3094d-2d36-4c1a-95da-b8ca40b646de" />
+<img width="1200" height="400" alt="chesx_ray_training" src="https://github.com/user-attachments/assets/796828a3-f362-4297-ad8f-1a97462bdfdc" />
 
 
 ## Confusion Matrix
 - The diagonal cells represent correct predictions.
 - Off-diagonal values indicate misclassifications.
 - The matrix shows how well the model distinguishes between Normal and Pneumonia cases.
-<img width="1000" height="800" alt="confusion_matrix" src="https://github.com/user-attachments/assets/13d0a32a-b7af-4d8f-98f4-7e0e885bd871" />
+<img width="1000" height="800" alt="confusion_matrix" src="https://github.com/user-attachments/assets/64fb5769-6ec7-42ed-837f-35b04dfeb73d" />
+
 
 
 ## Predictions
 - Green title indicates a correct prediction.
 - Red title indicates an incorrect prediction.
-<img width="1600" height="300" alt="Predicted" src="https://github.com/user-attachments/assets/5628d1f0-6318-4e09-952d-f5f1a62459ff" />
+<img width="1600" height="300" alt="Predicted" src="https://github.com/user-attachments/assets/2bc7e626-16af-4fd4-b253-bf0802eccbdb" />
+
 
 
 ## How to Run
