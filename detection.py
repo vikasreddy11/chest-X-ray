@@ -187,3 +187,19 @@ for epoch in range(EPOCHS):
     train_losses.append(train_loss)
     val_losses.append(val_loss)
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+#training cruve
+def plot_training(train_losses, val_losses):
+    plt.plot(train_losses, label='Train')
+    plt.plot(val_losses,   label='Val')
+    plt.title('Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig('detection_training.png')
+    plt.show()
+
+plot_training(train_losses, val_losses)
