@@ -118,3 +118,16 @@ test_dataset = RSNADataset(
 )
 
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=4, shuffle=False)
+
+#Model
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights='DEFAULT')
+
+for param in model.backbone.parameters():
+    param.requires_grad = False
+
+in_features = model.roi_heads.box_predictor.cls_score.in_features
+model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes=2)
+
+model = model.to(DEVICE)
