@@ -88,9 +88,9 @@ class RSNADataset(torch.utils.data.Dataset):
         return image,target
     
 
-TRAIN_DIR = r'D:\CODE\PROJECTS\CHESTxray\rsna-pneumonia-detection-challenge\stage_2_train_images'
-TEST_DIR  = r'D:\CODE\PROJECTS\CHESTxray\rsna-pneumonia-detection-challenge\stage_2_test_images'
-CSV_PATH  = r'D:\CODE\PROJECTS\CHESTxray\rsna-pneumonia-detection-challenge\stage_2_train_labels.csv'
+TRAIN_DIR = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_images'
+TEST_DIR  = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_test_images'
+CSV_PATH  = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_labels.csv'
 
 
 train_dataset = RSNADataset(
