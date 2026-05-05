@@ -131,3 +131,59 @@ in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes=2)
 
 model = model.to(DEVICE)
+
+optimizer = torch.optim.SGD(
+    filter(lambda p: p.requires_grad, model.parameters()),
+    lr=0.005,
+    momentum=0.9,
+    weight_decay=0.0005
+)
+best_val_loss = float('inf')
+
+for epoch in range(EPOCHS):
+
+    #train
+    model.train()
+    running_loss = 0.0
+
+    for images, targets in train_loader:
+        images  = [img.to(DEVICE) for img in images]
+        targets = [{k: v.to(DEVICE) for k, v in t.items()} for t in targets]
+
+        loss_dict = model(images, targets)  # model returns dict of losses
+        loss      = sum(loss_dict.values()) # add them all together
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+
+    train_loss = running_loss / len(train_loader)
+
+   
+    model.train()  
+    val_loss = 0.0
+
+    with torch.no_grad():
+        for images, targets in val_loader:
+            images  = [img.to(DEVICE) for img in images]
+            targets = [{k: v.to(DEVICE) for k, v in t.items()} for t in targets]
+
+            loss_dict = model(images, targets)
+            loss      = sum(loss_dict.values())
+            val_loss += loss.item()
+
+    val_loss = val_loss / len(val_loader)
+
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        torch.save(model.state_dict(), 'best_model.pth')  # save best model
+
+    print(f"Epoch {epoch+1}/{EPOCHS}")
+    print(f"Train Loss: {train_loss:.4f}")
+    print(f"Val Loss:   {val_loss:.4f}")
+
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+
