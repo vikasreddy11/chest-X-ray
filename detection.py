@@ -45,45 +45,83 @@ class RSNADataset(torch.utils.data.Dataset):
     def __init__(self,img_dir,csv_path,transform=None):
         self.img_dir=img_dir
         self.transform=transform
+        if csv_path is not None:
 
-        if csv_path:
-            self.df=pd.read_csv(csv_path)
-            self.df=self.df[self.df['Target']==1]
-        else :
-            self.images=os.listdir(img_dir)
+            df = pd.read_csv(csv_path)
+            df = df[df['Target'] == 1]
+            self.grouped = df.groupby('patientId')
+
+            self.patient_ids = list(
+                self.grouped.groups.keys()
+            )
+
+            self.has_labels = True
+
+
+        else:
+
+            self.patient_ids = [
+
+                file.replace(".dcm", "")
+
+                for file in os.listdir(img_dir)
+
+                if file.endswith(".dcm")
+            ]
+
+            self.has_labels = False
 
     def __len__(self):
-        if hasattr(self,'df'):
-            return len(self.df)
-        else:
-            return len(self.images)
+        return len(self.patient_ids)
         
     def __getitem__(self, index):
-        row=self.df.iloc[index]
-        path=os.path.join(self.img_dir,row['patientId']+'.dcm')
+
+        patient_id=self.patient_ids[index]
+
+        record=self.grouped.get_group(patient_id)
+
+        
+        path=os.path.join(self.img_dir,patient_id +'.dcm')
 
         dcm=pydicom.dcmread(path)
-        image=dcm.pixel_array
+        image=dcm.pixel_array.astype(np.float32)
+
+        max_val = image.max()
+        image = image / max_val if max_val > 0 else image
+        image = (image * 255).astype(np.uint8)
+
+        if self.transform:
+            image = self.transform(image)
+
+        if not self.has_labels:
+            return image, patient_id
 
         image=np.stack([image]*3,axis=-1)
         image=PIL.Image.fromarray(image)
-        if self.transform:
-            image=self.transform(image)
+        boxes = []
 
-        x=row['x']
-        y=row['y']
-        width=row['width']
-        height=row['height']
+        for _,row in record.iterrows():
+            x=row['x']
+            y=row['y']
+            width=row['width']
+            height=row['height']
 
-        x1=x
-        y1=y
-        x2=x1+width
-        y2=y1+height
+            x1=x
+            y1=y
+            x2=x1+width
+            y2=y1+height
+            boxes.append([x1, y1, x2, y2])
 
-        target={
-            "boxes":torch.tensor([[x1,y1,x2,y2]],dtype=torch.float32),
-            "labels":torch.tensor([1],dtype=torch.int64)
-        }
+        if len(boxes) == 0:
+            target = {
+                "boxes": torch.zeros((0, 4), dtype=torch.float32),
+                "labels": torch.zeros((0,), dtype=torch.int64),
+            }
+        else:
+            target = {
+                "boxes": torch.tensor(boxes, dtype=torch.float32),
+                "labels": torch.ones((len(boxes),), dtype=torch.int64),
+            }
 
         return image,target
     
