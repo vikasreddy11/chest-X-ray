@@ -187,4 +187,31 @@ class DiceLoss(torch.nn.Module):
         probs=probs.view(probs.size(0),-1)
         targets=targets.view(targets.size(0),-1)
         inter=(probs*targets).sum(dim=1)
-        
+        dice=(2.0*inter+self.smooth)/(
+            probs.sum(dim=1)+targets.sum(dim=1)+self.smooth
+        )
+        return 1.0-dice.mean()
+
+#Dice score
+def dice_score(logits,targets,threshold=0.5,smooth=1e-5):
+    probs=(torch.sigmoid(torch)>threshold).float()
+    probs=probs.view(probs.size(0),-1)
+    targets=targets.view(targets.size(0),-1)
+    inter=(probs*targets).sum(dim=1)
+    dice=(2.0*inter+smooth)/(
+        probs.sum(dim=1)+targets.sum(dim=1)+smooth
+    )
+    return dice.mean().item()
+
+#Model
+model=UNet(in_ch=1,num_classes=1).to(DEVICE)
+
+#Optimize,Loss and scheduler
+bce_fn=torch.nn.BCEWithLogitsLoss()
+dice_fn=DiceLoss()
+optimizer=torch.optim.Adam(model.parameters(),lr=1e-4)
+scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,mode='min',patience=3,factor=0.5
+)
+
+best_val_loss = float('inf')
