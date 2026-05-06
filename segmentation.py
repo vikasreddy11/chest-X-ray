@@ -120,3 +120,17 @@ class DoubleConv(torch.nn.Module):
     def forward(self,x):
         return self.Double(x)
 
+#Encoder Block
+class EncoderBlock(torch.nn.Module):
+    def __init__(self, in_ch,out_ch):
+        super().__init__()
+
+        self.conv=DoubleConv(in_ch,out_ch)
+        self.pool=torch.nn.MaxPool2d(2)
+    
+    def forward(self,x):
+        feature=self.conv(x)
+        pooled=self.pool(feature)
+
+        return feature,pooled
+    
