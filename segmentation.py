@@ -38,7 +38,7 @@ class RSNADataset(torch.utils.data.Dataset):
         self.transform=transform
         df=pd.read_csv(csv_path)
 
-        self.patient_ids=df['patient_ids']
+        self.patient_ids = df['patientId'].unique()
         self.grouped=df.groupby('patient_ids')
 
     def __len__(self):
@@ -58,12 +58,12 @@ class RSNADataset(torch.utils.data.Dataset):
             image=(image/max_val*255).astype(np.uint8)
         else:
             image=(image*0).astype(np.uint8)
-        image=PIL.Image.fromarray(image).covert('L')
+        image=PIL.Image.fromarray(image).convert('L')
 
         mask=np.zeros((1024,1024),dtype=np.uint8)
         record=self.grouped.get_group(patient_ids)
 
-        for _,row in record.iterrows:
+        for _,row in record.iterrows():
             x=int(row['x'])
             y=int(row['y'])
             w=int(row['width'])
@@ -173,10 +173,10 @@ class UNet(torch.nn.Module):
         skip3,x=self.enc3(x)
         skip4,x=self.enc4(x)
         x=self.bottleneck(x)
-        x=self.dec1(x,skip1)
-        x=self.dec2(x,skip2)
-        x=self.dec3(x,skip3)
-        x=self.dec4(x,skip4)
+        x=self.dec1(x,skip4)
+        x=self.dec2(x,skip3)
+        x=self.dec3(x,skip2)
+        x=self.dec4(x,skip1)
         return self.out(x)
     
 class DiceLoss(torch.nn.Module):
@@ -196,7 +196,7 @@ class DiceLoss(torch.nn.Module):
 
 #Dice score
 def dice_score(logits,targets,threshold=0.5,smooth=1e-5):
-    probs=(torch.sigmoid(torch)>threshold).float()
+    probs=(torch.sigmoid(logits)>threshold).float()
     probs=probs.view(probs.size(0),-1)
     targets=targets.view(targets.size(0),-1)
     inter=(probs*targets).sum(dim=1)
@@ -228,7 +228,7 @@ for epoch in range(EPOCHS):
         image,mask=image.to(DEVICE),mask.to(DEVICE)
 
         logits=model(image)
-        loss=bce_fn(logits)+dice_fn(logits)
+        loss=bce_fn(logits,mask)+dice_fn(logits,mask)
 
         optimizer.zero_grad()
         loss.backward()
@@ -252,7 +252,7 @@ for epoch in range(EPOCHS):
             loss=bce_fn(logits,mask)+dice_fn(logits,mask)
 
             val_loss+=loss.item()
-            val_dice=dice_score(logits.detach(),mask)
+            val_dice+=dice_score(logits.detach(),mask)
 
     val_loss=val_loss/len(val_loader)
     val_dice=val_dice/len(val_loader)
@@ -299,7 +299,7 @@ def plot_training(train_losses,val_losses,train_dices,val_dices):
     plt.savefig('segmentation_training.png')
     plt.show()
     print('Saved training curves')
-    
+
 
 def plot_predictions(model,val_loader,n=4):
     model.eval()
