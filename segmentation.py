@@ -148,3 +148,31 @@ class DecoderBock(torch.nn.Module):
         x=torch.cat([skip,x],dim=1)
         return self.conv(x)
 
+class UNet(torch.nn.Module):
+    def __init__(self,in_ch=1,num_classes=1):
+        super().__init__()
+
+        self.enc1=EncoderBlock(in_ch,64)
+        self.enc2=EncoderBlock(64,128)
+        self.enc3=EncoderBlock(128,256)
+        self.enc4=EncoderBlock(256,512)
+        self.bottleneck=DoubleConv(512,1024)
+        self.dec4=DecoderBock(1024,512)
+        self.dec3=DecoderBock(512,256)
+        self.dec2=DecoderBock(256,128)
+        self.dec1=DecoderBock(128,64)
+
+        self.out=torch.nn.Conv2d(64,num_classes,1)
+
+    def forward(self,x):
+
+        skip1,x=self.enc1(x)
+        skip2,x=self.enc2(x)
+        skip3,x=self.enc3(x)
+        skip4,x=self.enc4(x)
+        x=self.bottleneck(x)
+        x=self.dec1(x,skip1)
+        x=self.dec2(x,skip2)
+        x=self.dec3(x,skip3)
+        x=self.dec4(x,skip4)
+        return self.out(x)
