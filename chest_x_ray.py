@@ -1,5 +1,10 @@
 import torch
 import torchvision
+import pydicom
+import pandas as pd
+import numpy as np
+import os
+import PIL
 from sklearn.metrics import confusion_matrix,f1_score,accuracy_score,precision_score,recall_score
 
 #setting
@@ -32,29 +37,87 @@ val_transforms=torchvision.transforms.Compose([
 ])
 
 
-train_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/train', transform=train_transforms)
-val_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/val', transform=val_transforms)
-test_datasets = torchvision.datasets.ImageFolder(root='archive/chest_xray/test', transform=val_transforms)
+class RSNADataset(torch.utils.data.Dataset):
+    def __init__(self,img_dir,csv_path,transform =None):
+        super().__init__()
 
-from torch.utils.data import random_split, ConcatDataset
+        self.img_dir=img_dir
+        self.has_labels=csv_path
+        self.transform = transform
+        self.classes = ['Normal', 'Pneumonia']
+        self.patient_ids=[]
 
-#val set is small
-full_dataset = ConcatDataset([train_datasets, val_datasets,test_datasets])
+        if self.has_labels:
+            self.df = pd.read_csv(csv_path)
+            self.patient_ids = self.df['patientId'].unique().tolist()
+        else:
+            for file in os.listdir(img_dir):
+                if file.endswith('.dcm'):
+                    self.patient_ids.append(file.replace('.dcm',''))
+            self.grouped=None
+    
+    def __len__(self):
+        return len(self.patient_ids)
+    
+    def __getitem__(self, index):
+        patient_id=self.patient_ids[index]
+        path=os.path.join(self.img_dir,patient_id+'.dcm')
 
-total      = len(full_dataset)
-train_size = int(0.8 * total)  
-val_size   = int(0.1 * total)  
-test_size  = total - train_size - val_size
+        #load grayscale to array to rbg
+        image=pydicom.dcmread(path).pixel_array
+        image=image.squeeze()
+        if image.ndim==3:
+            image=image[0]
+        max_val=image.max()
 
-train_data, val_data, test_data = random_split(
-    full_dataset,
-    [train_size, val_size, test_size]
+        if max_val>0:
+            image=(image/max_val*255).astype(np.uint8)
+        else:
+            image=(image*0).astype(np.uint8)
+        image=PIL.Image.fromarray(image).convert('RGB')
+
+        if self.transform:
+            image=self.transform(image)
+        
+        if not self.has_labels:
+            return image, patient_id
+        record = self.df[self.df['patientId'] == patient_id]
+
+        label = 1 if record['Target'].max() == 1 else 0
+
+        return image, torch.tensor(label, dtype=torch.long)
+    
+TRAIN_DIR = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_images'
+TEST_DIR  = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_test_images'
+CSV_PATH  = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_labels.csv'
+
+
+train_dataset = RSNADataset(
+    img_dir = TRAIN_DIR,
+    csv_path  = CSV_PATH,
+    transform = train_transforms
 )
 
-train_loader=torch.utils.data.DataLoader(dataset=train_data,batch_size=Batch,shuffle=True)
-val_loader=torch.utils.data.DataLoader(dataset=val_data,shuffle=False,batch_size=Batch)
-test_loader=torch.utils.data.DataLoader(dataset=test_data,shuffle=False,batch_size=Batch)
+total      = len(train_dataset)
+train_size = int(0.8 * total)
+val_size   = total - train_size
 
+train_data, val_data = torch.utils.data.random_split(
+    train_dataset, [train_size, val_size]
+)
+
+
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=4, shuffle=True)
+val_loader   = torch.utils.data.DataLoader(val_data,   batch_size=4, shuffle=False)
+
+
+test_dataset = RSNADataset(
+    img_dir = TEST_DIR,
+    csv_path  = None,
+    transform = val_transforms
+)
+
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=4, shuffle=False)
 
 #Model
 def build_model(Architecture,num_classes):
@@ -204,8 +267,10 @@ for epoch in range(Epochs):
         best_val_acc=val_acc
 
     print(f"Epoch {epoch+1}/{Epochs}")
-    print(f"Trainning Accuracy:{train_acc:.2f}")
-    print(f"Val accuracy:{val_acc:.2f}")
+    print(f'Train Accuracy : {train_acc:.2f}%')
+    print(f'Val Accuracy   : {val_acc:.2f}%')
+    print(f'Train Loss     : {train_loss:.4f}')
+    print(f'Val Loss       : {val_loss:.4f}')
 
 
     train_accs.append(train_acc)
@@ -214,13 +279,13 @@ for epoch in range(Epochs):
     val_losses.append(val_loss)
 
 print(f"Best Accuracy:{best_val_acc:.2f}")
-print("\n----Test Results----")
-test_acc, test_prec, test_rec, test_f1 = evaluate(model, test_loader)
+print("\n----Validation Results----")
+val_acc, val_prec, val_rec, val_f1 = evaluate(model, val_loader)
 
-print(f"Test Accuracy  : {test_acc*100:.2f}%")
-print(f"Test Precision : {test_prec:.4f}")
-print(f"Test Recall    : {test_rec:.4f}")
-print(f"Test F1 Score  : {test_f1:.4f}")
+print(f"Accuracy  : {val_acc*100:.2f}%")
+print(f" Precision : {val_prec:.4f}")
+print(f" Recall    : {val_rec:.4f}")
+print(f" F1 Score  : {val_f1:.4f}")
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -276,31 +341,47 @@ def plot_confusion(model,loader,class_names):
     print("Saved confusion matrix")
 
 #sample prediction
-def plot_predicted(model,val_loader,class_names,n=8):
+def plot_predicted(model, val_loader, class_names, n=8):
     model.eval()
-    images,labels=next(iter(val_loader))
+    images, labels = next(iter(val_loader))
+    n = min(n, len(images))
+
     with torch.no_grad():
-        images=images.to(DEVICE)
-        preds=model(images).argmax(1).cpu().numpy()
+        images_device = images.to(DEVICE)
+        preds = model(images_device).argmax(1).cpu().numpy()
 
-        mean=torch.tensor([0.485,0.456,0.406]).view(3,1,1).to(DEVICE)
-        std=torch.tensor([0.229,0.224,0.225]).view(3,1,1).to(DEVICE)
-        images=(images*std+mean).clamp(0,1).cpu()
+        mean = torch.tensor([0.485, 0.456, 0.406]).view(3,1,1)
+        std  = torch.tensor([0.229, 0.224, 0.225]).view(3,1,1)
 
-        fig,axes=plt.subplots(1,n,figsize=(2*n,3))
-        for i,ax in enumerate(axes):
+        images = (images * std + mean).clamp(0,1)
+        fig, axes = plt.subplots(1, n, figsize=(2*n, 3))
+
+        if n == 1:
+            axes = [axes]
+
+        for i in range(n):
+            ax = axes[i]
+
             ax.imshow(images[i].permute(1,2,0))
-            color='green' if preds[i]==labels[i] else 'red'
-            ax.set_title(f'P : {class_names[preds[i]]}\nT : {class_names[labels[i]]}',
-                         color=color,fontsize=8)
+
+            color = 'green' if preds[i] == labels[i].item() else 'red'
+
+            ax.set_title(
+                f'P: {class_names[preds[i]]}\nT: {class_names[labels[i].item()]}',
+                color=color,
+                fontsize=8
+            )
+
             ax.axis('off')
 
+        plt.tight_layout()
         plt.savefig('Predicted.png')
         plt.show()
+
         print('Saved predicted figure')
 
-class_names=train_datasets.classes
+class_names=train_dataset.classes
 
 plot_training(train_accs,val_accs,train_losses,val_losses)
-plot_confusion(model,test_loader,class_names)
+plot_confusion(model,val_loader,class_names)
 plot_predicted(model,val_loader,class_names)
