@@ -1,124 +1,200 @@
-# Chest X-Ray Classification using Transfer Learning (VGG16)
-
-Image classification using the **fine-tuning method** on chest X-ray images.
-
-![Python](https://img.shields.io/badge/Python-3.13-blue)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0-red)
-![GPU](https://img.shields.io/badge/GPU-RTX3050-green)
-
+# RSNA Chest X-Ray Analysis
+ 
+Three deep learning approaches to pneumonia detection on the [RSNA Pneumonia Detection Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge) dataset — classification, object detection, and semantic segmentation — all trained on the same chest X-ray data.
+ 
 ---
-
-## Project Overview
-
-This project applies transfer learning using the VGG16 convolutional neural network to classify chest X-ray images into two categories: Normal and Pneumonia. The model is fine-tuned on a medical imaging dataset and evaluated using multiple performance metrics including accuracy, precision, recall, and F1 score.
+ 
+## Approaches
+ 
+| Approach | File | Model | Task | Output |
+|---|---|---|---|---|
+| Classification | `classification/classification.py` | VGG16 (Transfer Learning) | Does pneumonia exist? | Normal / Pneumonia label |
+| Detection | `detection/detection.py` | Faster RCNN ResNet50 FPN | Where is the pneumonia? | Bounding box coordinates |
+| Segmentation | `segmentation/segmentation.py` | U-Net (from scratch) | Which pixels are pneumonia? | Pixel-wise binary mask |
+ 
 ---
-
-# Dataset
-
-The model is trained on a **Chest X-ray dataset** consisting of two classes:
-
-| Class | Description |
-|------|-------------|
-| Normal | Healthy chest X-ray images |
-| Pneumonia | Chest X-ray images with pneumonia infection |
-
----
-
-# Files
-
-| File | Description |
-|-----|-------------|
-| `chest_x_ray.py` | Implementation of VGG16 fine-tuning for chest X-ray classification |
-
----
-
-# Fine-Tuning Strategy
-
-Transfer learning is implemented by **fine-tuning the VGG16 network**.
-
-Steps used in the project:
-
-1. Load pretrained **VGG16** from `torchvision`.
-2. Freeze early convolution layers to preserve general image features.
-3. Unfreeze the final layers for task-specific learning.
-4. Replace the final classifier layer for **binary classification**.
-5. Train the modified network using the chest X-ray dataset.
-
----
-
-# Model Architecture
-
-### VGG16 Fine-Tuning
+ 
+## Dataset
+ 
+**RSNA Pneumonia Detection Challenge**  
+Download from Kaggle: https://www.kaggle.com/c/rsna-pneumonia-detection-challenge
+ 
+After downloading, place files as:
+ 
 ```
-Input Image (224×224)
-        ↓
-VGG16 Convolution Backbone
-        ↓
-Flatten (25088)
-        ↓
-Linear (25088 → 256)
-        ↓
-      ReLU
-        ↓
-Dropout(0.4)
-        ↓
-Linear (256 → 2)
+rsna-pneumonia-detection-challenge/
+├── stage_2_train_images/     ← .dcm chest X-ray files
+├── stage_2_test_images/      ← .dcm test files
+└── stage_2_train_labels.csv  ← bounding box annotations
 ```
-
-# Evaluation Metrics
-
-Model performance is evaluated using:
-
-| Metric | Description |
-|------|-------------|
-| Accuracy | Overall prediction correctness |
-| Precision | Correct positive predictions |
-| Recall | Ability to detect pneumonia cases |
-| F1 Score | Balance between precision and recall |
-
+ 
+Update the `TRAIN_DIR`, `TEST_DIR`, `CSV_PATH` variables in each script to match your local path.
+ 
 ---
-
-# Results
-
-| Metric | Score |
-|------|------|
-| Accuracy | 97.96% |
-| Precision |0.9885 |
-| Recall |0.9839 |
-| F1 Score | 0.9862|
-
-## Training curves
-- The graph shows accuracy increasing and loss decreasing over 10 epochs.
-- Train and Val curves are close together which means no overfitting.
-<img width="1200" height="400" alt="chesx_ray_training" src="https://github.com/user-attachments/assets/796828a3-f362-4297-ad8f-1a97462bdfdc" />
-
-
-## Confusion Matrix
-- The diagonal cells represent correct predictions.
-- Off-diagonal values indicate misclassifications.
-- The matrix shows how well the model distinguishes between Normal and Pneumonia cases.
-<img width="1000" height="800" alt="confusion_matrix" src="https://github.com/user-attachments/assets/64fb5769-6ec7-42ed-837f-35b04dfeb73d" />
-
-
-
-## Predictions
-- Green title indicates a correct prediction.
-- Red title indicates an incorrect prediction.
-<img width="1600" height="300" alt="Predicted" src="https://github.com/user-attachments/assets/2bc7e626-16af-4fd4-b253-bf0802eccbdb" />
-
-
-
-## How to Run
-
-### Install dependencies
+ 
+## Repository Structure
+ 
+```
+rsna-chest-xray-analysis/
+├── classification/
+│   └── classification.py
+├── detection/
+│   └── detection.py
+├── segmentation/
+│   └── segmentation.py
+└── README.md
+```
+ 
+---
+ 
+## Setup
+ 
 ```bash
-pip install torch torchvision matplotlib seaborn scikit-learn
+pip install torch torchvision pydicom pandas numpy pillow scikit-learn matplotlib seaborn
 ```
-
-### Run code
+ 
+---
+ 
+## Run
+ 
 ```bash
-python chest_x_ray.py
+# Classification
+python classification/classification.py
+ 
+# Detection
+python detection/detection.py
+ 
+# Segmentation
+python segmentation/segmentation.py
 ```
+ 
+---
+ 
+## Model Details
+ 
+### 1. Classification — VGG16
+ 
+| Setting | Value |
+|---|---|
+| Base model | VGG16 pretrained on ImageNet |
+| Frozen layers | All feature layers except last 4 |
+| Custom head | Linear(4096→256) → ReLU → Dropout(0.4) → Linear(256→2) |
+| Loss | CrossEntropyLoss |
+| Optimizer | Adam (lr=1e-4) |
+| Scheduler | ReduceLROnPlateau (patience=2, factor=0.2) |
+| Image size | 224×224 |
+| Batch size | 4 |
+| Epochs | 10 |
+| Augmentations | HorizontalFlip, Rotation(10°), ColorJitter, RandomCrop |
+ 
+### 2. Detection — Faster RCNN
+ 
+| Setting | Value |
+|---|---|
+| Base model | Faster RCNN ResNet50 FPN pretrained |
+| Frozen layers | Backbone (ResNet50) |
+| Custom head | FastRCNNPredictor (2 classes: background, pneumonia) |
+| Loss | Faster RCNN internal (cls + bbox + rpn) |
+| Optimizer | SGD (lr=0.005, momentum=0.9, weight_decay=0.0005) |
+| Scheduler | StepLR (step=3, gamma=0.1) |
+| Image size | 224×224 |
+| Batch size | 4 |
+| Epochs | 10 |
+| Augmentations | HorizontalFlip, Rotation(10°), ColorJitter, RandomCrop |
+ 
+### 3. Segmentation — U-Net
+ 
+| Setting | Value |
+|---|---|
+| Architecture | U-Net built from scratch |
+| Encoder | 4 blocks: 64→128→256→512 channels |
+| Bottleneck | 512→1024 channels |
+| Decoder | 4 blocks with skip connections: 1024→512→256→128→64 |
+| Loss | BCEWithLogitsLoss + DiceLoss |
+| Optimizer | Adam (lr=1e-4) |
+| Scheduler | ReduceLROnPlateau (patience=3, factor=0.5) |
+| Image size | 256×256 |
+| Batch size | 8 |
+| Epochs | 10 |
+| Input channels | 1 (grayscale) |
+| Augmentations | HorizontalFlip, Normalize |
+ 
+---
+ 
+## Results
+ 
+### Classification
+ 
+| Metric | Value |
+|---|---|
+| Best Val Accuracy | __%  |
+| Test Accuracy | __%  |
+| Precision | __ |
+| Recall | __ |
+| F1 Score | __ |
+ 
+### Detection
+ 
+| Metric | Value |
+|---|---|
+| Best Train Loss | __ |
+| Best Val Loss | __ |
+ 
+### Segmentation
+ 
+| Metric | Value |
+|---|---|
+| Best Val Loss | __ |
+| Best Val Dice Score | __ |
+| Train Dice Score | __ |
+ 
+> Fill in values after training. Add your output plots below.
+ 
+---
+ 
+## Output Plots
+ 
+### Classification
+| Training Curves | Confusion Matrix | Sample Predictions |
+|---|---|---|
+| `chesx_ray_training.png` | `confusion_matrix.png` | `Predicted.png` |
+ 
+### Detection
+| Training Curves |
+|---|
+| `detection_training.png` |
+ 
+### Segmentation
+| Training Curves | Predictions |
+|---|---|
+| `segmentation_training.png` | `segmentation_predictions.png` |
+ 
+---
+ 
+## Why Three Approaches?
+ 
+| Question | Approach |
+|---|---|
+| Does this patient have pneumonia? | Classification — fast, yes/no answer |
+| Roughly where in the lung is it? | Detection — draws a box around the region |
+| Exactly which pixels are affected? | Segmentation — precise pixel-level boundary |
+ 
+Each approach answers a different clinical question. Classification is fastest and simplest. Detection adds localization. Segmentation gives the most precise output but requires the most compute.
+ 
+---
+ 
+## Comparison
+ 
+| Aspect | Classification | Detection | Segmentation |
+|---|---|---|---|
+| Model | VGG16 | Faster RCNN | U-Net |
+| Pretrained | Yes (ImageNet) | Yes (COCO) | No (from scratch) |
+| Output | Label | Bounding box | Pixel mask |
+| Annotation used | Target (0/1) | x, y, w, h boxes | x, y, w, h → converted to mask |
+| Spatial precision | None | Approximate | Exact |
+| Training speed | Fast | Medium | Medium |
+| Params | ~138M (frozen) | ~41M (frozen) | ~31M (all trainable) |
+
 
 ## Author
 **Vikas Reddy**
