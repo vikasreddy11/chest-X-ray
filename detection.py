@@ -4,7 +4,7 @@ from sklearn.metrics import confusion_matrix,f1_score,accuracy_score,precision_s
 
 #setting
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-EPOCHS=10
+EPOCHS=2
 
 
 train_accs,val_accs=[],[]
@@ -42,53 +42,43 @@ def collate_fn(batch):
     return images, targets
 
 class RSNADataset(torch.utils.data.Dataset):
-    def __init__(self,img_dir,csv_path,transform=None):
-        self.img_dir=img_dir
-        self.transform=transform
-        if csv_path is not None:
+    def __init__(self, img_dir, csv_path, transform=None):
+        self.img_dir = img_dir
+        self.transform = transform
+        self.has_labels = csv_path is not None
+        self.patient_ids = []
 
+        if self.has_labels:
             df = pd.read_csv(csv_path)
-            df = df[df['Target'] == 1]
-            self.grouped = df.groupby('patientId')
-
-            self.patient_ids = list(
-                self.grouped.groups.keys()
-            )
-
-            self.has_labels = True
-
-
+            df = df[df["Target"] == 1]
+            self.grouped = df.groupby("patientId")
+            self.patient_ids = list(self.grouped.groups.keys())
         else:
-
-            self.patient_ids = [
-
-                file.replace(".dcm", "")
-
-                for file in os.listdir(img_dir)
-
-                if file.endswith(".dcm")
-            ]
-
-            self.has_labels = False
+            for file in os.listdir(img_dir):
+                if file.endswith('.dcm'):
+                    self.patient_ids.append(file.replace('.dcm',''))
+            self.grouped = None
 
     def __len__(self):
         return len(self.patient_ids)
-        
+
     def __getitem__(self, index):
+        patient_id = self.patient_ids[index]
+        path = os.path.join(self.img_dir, patient_id + ".dcm")
 
-        patient_id=self.patient_ids[index]
-
-        record=self.grouped.get_group(patient_id)
-
-        
-        path=os.path.join(self.img_dir,patient_id +'.dcm')
-
-        dcm=pydicom.dcmread(path)
-        image=dcm.pixel_array.astype(np.float32)
-
+        # load dicom → grayscale uint8 → PIL RGB
+        image = pydicom.dcmread(path).pixel_array
+        image = image.squeeze()
+        if image.ndim == 3:
+            image = image[0]
         max_val = image.max()
-        image = image / max_val if max_val > 0 else image
-        image = (image * 255).astype(np.uint8)
+
+        if max_val>0:
+            image=(image/max_val*255).astype(np.uint8)
+        else:
+            image=(image*0).astype(np.uint8) 
+
+        image = PIL.Image.fromarray(image).convert("RGB")
 
         if self.transform:
             image = self.transform(image)
@@ -96,20 +86,14 @@ class RSNADataset(torch.utils.data.Dataset):
         if not self.has_labels:
             return image, patient_id
 
-        image=np.stack([image]*3,axis=-1)
-        image=PIL.Image.fromarray(image)
-        boxes = []
+        record = self.grouped.get_group(patient_id)
+        boxes=[]
 
         for _,row in record.iterrows():
-            x=row['x']
-            y=row['y']
-            width=row['width']
-            height=row['height']
-
-            x1=x
-            y1=y
-            x2=x1+width
-            y2=y1+height
+            x1=row['x']
+            y1=row['y']
+            x2=x1+row['width']
+            y2=y1+row['height']
             boxes.append([x1, y1, x2, y2])
 
         if len(boxes) == 0:
@@ -176,6 +160,8 @@ optimizer = torch.optim.SGD(
     momentum=0.9,
     weight_decay=0.0005
 )
+
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 best_val_loss = float('inf')
 
 for epoch in range(EPOCHS):
@@ -217,6 +203,8 @@ for epoch in range(EPOCHS):
     if val_loss < best_val_loss:
         best_val_loss = val_loss
         torch.save(model.state_dict(), 'best_model.pth')  # save best model
+    
+    scheduler.step()
 
     print(f"Epoch {epoch+1}/{EPOCHS}")
     print(f"Train Loss: {train_loss:.4f}")
