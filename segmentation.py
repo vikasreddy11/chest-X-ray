@@ -10,6 +10,8 @@ import PIL
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 EPOCHS=5
 IMG_SIZE=256
+train_losses, val_losses = [], []
+train_dices,  val_dices  = [], []
 
 
 #data Agumentation
@@ -215,3 +217,60 @@ scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(
 )
 
 best_val_loss = float('inf')
+
+#training Epoch
+for epoch in range(EPOCHS):
+    running_loss=0
+    running_dice=0
+
+    model.train()
+    for image,mask in train_loader:
+        image,mask=image.to(DEVICE),mask.to(DEVICE)
+
+        logits=model(image)
+        loss=bce_fn(logits)+dice_fn(logits)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        running_dice+=dice_score(logits.detach(),mask)
+        running_loss+=loss.item()
+
+    train_loss=running_loss/len(train_loader)
+    train_dice=running_dice/len(train_loader)
+
+    model.eval()
+    val_loss=0
+    val_dice=0
+
+    with torch.no_grad():
+        for image,mask in val_loader:
+            image,mask=image.to(DEVICE),mask.to(DEVICE)
+
+            logits=model(image)
+            loss=bce_fn(logits,mask)+dice_fn(logits,mask)
+
+            val_loss+=loss.item()
+            val_dice=dice_score(logits.detach(),mask)
+
+    val_loss=val_loss/len(val_loader)
+    val_dice=val_dice/len(val_loader)
+
+    scheduler.step(val_loss)
+
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        torch.save(model.state_dict(), 'best_model.pth')
+ 
+    print(f"Epoch {epoch+1}/{EPOCHS}")
+    print(f"Train Loss: {train_loss:.4f} | Train Dice: {train_dice:.4f}")
+    print(f"Val Loss:   {val_loss:.4f} | Val Dice:   {val_dice:.4f}")
+ 
+    train_losses.append(train_loss)
+    val_losses.append(val_loss)
+    train_dices.append(train_dice)
+    val_dices.append(val_dice)
+ 
+print(f"\nBest Val Loss: {best_val_loss:.4f}")
+
