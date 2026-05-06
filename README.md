@@ -3,7 +3,11 @@
 Three deep learning approaches to pneumonia detection on the [RSNA Pneumonia Detection Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge) dataset — classification, object detection, and semantic segmentation — all trained on the same chest X-ray data.
  
 ---
- 
+
+![Python](https://img.shields.io/badge/Python-3.13-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0-red)
+![GPU](https://img.shields.io/badge/GPU-RTX3050-green)
+
 ## Approaches
  
 | Approach | File | Model | Task | Output |
