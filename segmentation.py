@@ -274,3 +274,66 @@ for epoch in range(EPOCHS):
  
 print(f"\nBest Val Loss: {best_val_loss:.4f}")
 
+#plots
+
+import matplotlib.pyplot as plt
+
+def plot_training(train_losses,val_losses,train_dices,val_dices):
+    fig,(ax1,ax2)=plt.subplots(1,2,figsize=(12,4))
+
+    ax1.plot(train_losses,label="Train")
+    ax1.plot(val_losses,label="Val")
+    ax1.set_title("Loss")
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Loss")
+    ax1.legend()
+
+    ax2.plot(train_dices,label="Train")
+    ax2.plot(val_dices,label="Val")
+    ax2.set_title("Dice Score")
+    ax2.set_xlabel("Epoch")
+    ax2.set_ylabel("Dice loss")
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.savefig('segmentation_training.png')
+    plt.show()
+    print('Saved training curves')
+    
+
+def plot_predictions(model,val_loader,n=4):
+    model.eval()
+    images, masks = next(iter(val_loader))
+
+    with torch.no_grad():
+        images_gpu = images.to(DEVICE)
+        logits     = model(images_gpu)
+        preds      = (torch.sigmoid(logits) > 0.5).float().cpu()
+ 
+    fig, axes = plt.subplots(3, n, figsize=(3*n, 9))
+ 
+    for i in range(n):
+        img = images[i].squeeze().numpy()
+        img = (img * 0.5 + 0.5)  
+        img = np.clip(img, 0, 1)
+ 
+        axes[0, i].imshow(img, cmap='gray')
+        axes[0, i].set_title('X-Ray')
+        axes[0, i].axis('off')
+ 
+        axes[1, i].imshow(masks[i].squeeze().numpy(), cmap='gray')
+        axes[1, i].set_title('True Mask')
+        axes[1, i].axis('off')
+ 
+        axes[2, i].imshow(preds[i].squeeze().numpy(), cmap='gray')
+        axes[2, i].set_title('Predicted')
+        axes[2, i].axis('off')
+ 
+    plt.tight_layout()
+    plt.savefig('segmentation_predictions.png')
+    plt.show()
+    print('Saved predictions')
+ 
+ 
+plot_training(train_losses, val_losses, train_dices, val_dices)
+plot_predictions(model, val_loader)
