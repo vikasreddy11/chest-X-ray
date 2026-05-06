@@ -134,3 +134,17 @@ class EncoderBlock(torch.nn.Module):
 
         return feature,pooled
     
+#Decoder
+class DecoderBock(torch.nn.Module):
+    def __init__(self, in_ch,out_ch):
+        super().__init__()
+
+        self.upsample=torch.nn.ConvTranspose2d(in_ch,out_ch,kernel_size=2,stride=2)
+        self.conv=DoubleConv(2*out_ch,out_ch)
+
+    def forward(self,skip,x):
+
+        x=self.upsample(x)
+        x=torch.cat([skip,x],dim=1)
+        return self.conv(x)
+
