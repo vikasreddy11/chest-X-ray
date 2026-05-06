@@ -176,3 +176,15 @@ class UNet(torch.nn.Module):
         x=self.dec3(x,skip3)
         x=self.dec4(x,skip4)
         return self.out(x)
+    
+class DiceLoss(torch.nn.Module):
+    def __init__(self, smooth=1e-5):
+        super().__init__()
+        self.smooth=smooth
+
+    def forward(self,logits,targets):
+        probs=torch.sigmoid(logits)
+        probs=probs.view(probs.size(0),-1)
+        targets=targets.view(targets.size(0),-1)
+        inter=(probs*targets).sum(dim=1)
+        
