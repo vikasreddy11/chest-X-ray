@@ -13,14 +13,14 @@ IMG_SIZE=256
 
 
 #data Agumentation
-train_transform=torchvision.transforms.Compose([
+train_transforms=torchvision.transforms.Compose([
     torchvision.transforms.Resize((IMG_SIZE,IMG_SIZE)),
     torchvision.transforms.RandomHorizontalFlip(),
     torchvision.transforms.ToTensor(),
     torchvision.transforms.Normalize([0.5],[0.5])
 ])
 
-val_transform=torchvision.transforms.Compose([
+val_transforms=torchvision.transforms.Compose([
     torchvision.transforms.Resize((IMG_SIZE,IMG_SIZE)),
     torchvision.transforms.ToTensor(),
     torchvision.transforms.Normalize([0.5],[0.5])
@@ -80,3 +80,22 @@ class RSNADataset(torch.utils.data.Dataset):
  
         return image, mask
 
+TRAIN_DIR = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_images'
+CSV_PATH  = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_labels.csv'
+
+train_dataset = RSNADataset(
+    img_dir  = TRAIN_DIR,
+    csv_path = CSV_PATH,
+    transform = train_transforms
+)
+ 
+total      = len(train_dataset)
+train_size = int(0.8 * total)
+val_size   = total - train_size
+ 
+train_data, val_data = torch.utils.data.random_split(
+    train_dataset, [train_size, val_size]
+)
+ 
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=8,  shuffle=True)
+val_loader   = torch.utils.data.DataLoader(val_data,   batch_size=8,  shuffle=False)
