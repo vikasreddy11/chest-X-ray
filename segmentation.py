@@ -83,6 +83,7 @@ class RSNADataset(torch.utils.data.Dataset):
 TRAIN_DIR = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_images'
 CSV_PATH  = r'D:\CODE\PROJECTS\rsna-chest-xray-analysis\rsna-pneumonia-detection-challenge\stage_2_train_labels.csv'
 
+#Train and val split
 train_dataset = RSNADataset(
     img_dir  = TRAIN_DIR,
     csv_path = CSV_PATH,
@@ -99,3 +100,23 @@ train_data, val_data = torch.utils.data.random_split(
  
 train_loader = torch.utils.data.DataLoader(train_data, batch_size=8,  shuffle=True)
 val_loader   = torch.utils.data.DataLoader(val_data,   batch_size=8,  shuffle=False)
+
+
+#U-Net Architecture
+class DoubleConv(torch.nn.Module):
+    def __init__(self, in_ch,out_ch):
+        super().__init__()
+
+        self.Double=torch.nn.Sequential(
+            torch.nn.Conv2d(in_ch,out_ch,kernel_size=3,padding=1),
+            torch.nn.BatchNorm2d(out_ch),
+            torch.nn.ReLU(inplace=True),
+
+            torch.nn.Conv2d(out_ch,out_ch,kernel_size=3,padding=1),
+            torch.nn.BatchNorm2d(out_ch),
+            torch.nn.ReLU(inplace=True)
+        )
+
+    def forward(self,x):
+        return self.Double(x)
+
