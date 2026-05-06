@@ -39,7 +39,7 @@ class RSNADataset(torch.utils.data.Dataset):
         df=pd.read_csv(csv_path)
 
         self.patient_ids = df['patientId'].unique()
-        self.grouped=df.groupby('patient_ids')
+        self.grouped=df.groupby('patientId')
 
     def __len__(self):
         return len(self.patient_ids)
@@ -52,8 +52,9 @@ class RSNADataset(torch.utils.data.Dataset):
         image=image.squeeze()
         if image.ndim==3:
             image=image[0]
-        max_val=image.max()
 
+
+        max_val=image.max()
         if max_val>0:
             image=(image/max_val*255).astype(np.uint8)
         else:
@@ -64,6 +65,8 @@ class RSNADataset(torch.utils.data.Dataset):
         record=self.grouped.get_group(patient_ids)
 
         for _,row in record.iterrows():
+            if pd.isna(row['x']):   
+                continue
             x=int(row['x'])
             y=int(row['y'])
             w=int(row['width'])
@@ -144,7 +147,7 @@ class DecoderBock(torch.nn.Module):
         self.upsample=torch.nn.ConvTranspose2d(in_ch,out_ch,kernel_size=2,stride=2)
         self.conv=DoubleConv(2*out_ch,out_ch)
 
-    def forward(self,skip,x):
+    def forward(self,x,skip):
 
         x=self.upsample(x)
         x=torch.cat([skip,x],dim=1)
@@ -173,10 +176,10 @@ class UNet(torch.nn.Module):
         skip3,x=self.enc3(x)
         skip4,x=self.enc4(x)
         x=self.bottleneck(x)
-        x=self.dec1(x,skip4)
-        x=self.dec2(x,skip3)
-        x=self.dec3(x,skip2)
-        x=self.dec4(x,skip1)
+        x=self.dec4(x,skip4)
+        x=self.dec3(x,skip3)
+        x=self.dec2(x,skip2)
+        x=self.dec1(x,skip1)
         return self.out(x)
     
 class DiceLoss(torch.nn.Module):
