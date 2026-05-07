@@ -141,8 +141,8 @@ python segmentation/segmentation.py
  
 | Metric | Value |
 |---|---|
-| Best Train Loss | __ |
-| Best Val Loss | __ |
+| Best Train Loss | 27.7919|
+| Best Val Loss |27.2433|
  
 ### Segmentation
  
@@ -167,7 +167,10 @@ python segmentation/segmentation.py
 | Training Curves |
 |---|
 | `detection_training.png` |
- 
+
+### Training
+<img width="640" height="480" alt="detection_training" src="https://github.com/user-attachments/assets/b496d74e-51b8-4849-9c5f-55ad95dcd824" />
+
 ### Segmentation
 | Training Curves | Predictions |
 |---|---|
