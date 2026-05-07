@@ -148,9 +148,9 @@ python segmentation/segmentation.py
  
 | Metric | Value |
 |---|---|
-| Best Val Loss | __ |
-| Best Val Dice Score | __ |
-| Train Dice Score | __ |
+| Best Val Loss | 1.0096|
+| Best Val Dice Score |0.5481|
+| Train Dice Score |0.5013 |
  
 > Fill in values after training. Add your output plots below.
  
@@ -172,6 +172,14 @@ python segmentation/segmentation.py
 | Training Curves | Predictions |
 |---|---|
 | `segmentation_training.png` | `segmentation_predictions.png` |
+
+### Training
+
+<img width="1200" height="400" alt="segmentation_training" src="https://github.com/user-attachments/assets/6066294b-fa69-441f-9b9c-61a092a7a765" />
+
+### Predictions
+<img width="1200" height="900" alt="segmentation_predictions" src="https://github.com/user-attachments/assets/ca34f471-1f57-4ca8-89e5-4b383b69b229" />
+
  
 ---
  
