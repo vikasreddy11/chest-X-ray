@@ -131,11 +131,11 @@ python segmentation/segmentation.py
  
 | Metric | Value |
 |---|---|
-| Best Val Accuracy | __%  |
-| Test Accuracy | __%  |
-| Precision | __ |
-| Recall | __ |
-| F1 Score | __ |
+| Best Val Accuracy | 84.32%  |
+| Test Accuracy | 83.77%  |
+| Precision |0.6786 |
+| Recall | 0.4753|
+| F1 Score | 0.5591|
  
 ### Detection
  
@@ -162,7 +162,17 @@ python segmentation/segmentation.py
 | Training Curves | Confusion Matrix | Sample Predictions |
 |---|---|---|
 | `chesx_ray_training.png` | `confusion_matrix.png` | `Predicted.png` |
- 
+
+### Training 
+<img width="1200" height="400" alt="chesx_ray_training" src="https://github.com/user-attachments/assets/142a6c12-158f-47c6-9da1-311979a4bab5" />
+
+### Confusion matrix
+<img width="1000" height="800" alt="confusion_matrix" src="https://github.com/user-attachments/assets/5062c913-a211-41c3-8bc4-7c1fe149b453" />
+
+
+### Prediction
+ <img width="800" height="300" alt="Predicted" src="https://github.com/user-attachments/assets/81cebe44-bd45-4e49-b58f-78fdcd852741" />
+
 ### Detection
 | Training Curves |
 |---|
